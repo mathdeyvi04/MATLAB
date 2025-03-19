@@ -2,21 +2,36 @@
 %   
 %   Al Deyvisson - 05/03/2025
 %
-limpa
 %%%%%%%%%%%%%%%%%%%%%%% Parâmetros Manipuláveis %%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [output] = main_(input)
     % Crie uma função que estará centrada no meio.
     % A parte mínima se estenderá de - periodo / 2 até periodo / 2.
+    
+    if input >= -4 && input <= -1
+        output = input + 2;
+    
+    end
 
-    output = input * input;
+    if input >= -1 && input <= 1
+        output = 1;
+    end
+
+    if input >= 1 && input <= 3
+        output = 1 - input;
+    end
+
+    if input >= 3 && input <= 4
+        output = -2;
+    end
+    
 end
 
 % Período Desejado para nossa função
-PERIODO_DA_FUNCAO = 2 * pi;
+PERIODO_DA_FUNCAO = 8;
 
 % Quantos termos desejamos 
-QUANTIDADE_DESEJADA = 10;
+QUANTIDADE_DESEJADA = 20;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Código %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -148,7 +163,7 @@ plot(interv, resp1, "LineWidth", 2);
 plot(interv, resp2, "LineWidth", 2);
 xlabel("Eixo X");
 ylabel("Eixo Y");
-title("Série de Fourier");
+title("Série de Fourier (" + QUANTIDADE_DESEJADA + ")");
 grid;
 legend("Real", "Série Aproximada")
 hold off
