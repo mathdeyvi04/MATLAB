@@ -8,30 +8,14 @@ function [output] = main_(input)
     % Crie uma função que estará centrada no meio.
     % A parte mínima se estenderá de - periodo / 2 até periodo / 2.
     
-    if input >= -4 && input <= -1
-        output = input + 2;
-    
-    end
-
-    if input >= -1 && input <= 1
-        output = 1;
-    end
-
-    if input >= 1 && input <= 3
-        output = 1 - input;
-    end
-
-    if input >= 3 && input <= 4
-        output = -2;
-    end
     
 end
 
 % Período Desejado para nossa função
-PERIODO_DA_FUNCAO = 8;
+PERIODO_DA_FUNCAO = 2;
 
 % Quantos termos desejamos 
-QUANTIDADE_DESEJADA = 20;
+QUANTIDADE_DESEJADA = 50;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% Código %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -150,7 +134,7 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%% Apenas Visualizaremos a Aproximação %%%%%%%%%
 
-interv = -10:0.01:10;
+interv = -pi:0.01:pi;
 
 resp1 = main_vetorial(interv);
 
