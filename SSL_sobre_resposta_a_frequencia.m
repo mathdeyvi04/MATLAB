@@ -1,3 +1,21 @@
+clc
+clear
+% Caso você deseje executar este código:
+%   Devido ao conjunto de dados ser vasto, mais de 5 arquivos, além da
+%   necessidade de escabilidade, pois posteriores grupos podem adicionar
+%   mais arquivos para frequências maiores, criou-se uma lógica de iteração
+%   que automatiza as leituras. 
+%   
+%   Entretanto, isso impede que arquivos que não estejam no padrão sejam
+%   lidos. A seguir, o padrão:
+%   
+%   Dados relativos à senoides: sen_x_y.mat. Onde x.y representa a
+%   frequência.
+%   
+%   Dados relativos à pulsos quadrados: sqr_x_y.mat. 
+%   
+%   Dados relativos à pulsos triangulares: tr_x_y.mat.       
+
 % Interpretação dos Arquivos
 %   Cada arquivo é composto por 2 variáveis, as quais armazenam 2 arrays
 %   cada. 
@@ -28,12 +46,12 @@ matriz_de_resp_em_freq_por_senos = zeros(17, 3);
 idx = 1;
 
 % Definamos o modelo senoidal: y = A * sin(2*pi*f*x + phi) que será
-% utilizado no ajuste.
+% utilizado no ajuste das senoides.
 melhor_senoide = @(params, x) params(1) * sin(2 * pi * params(2) * x + params(3));
 
 function [vetor_de_frequencias, espectro] = aplicar_dft(vetor_de_entrada, numero_de_elementos_da_entrada, frequencia_de_amostragem)
     % A função embutida para FFT necessita de todo um tratamento específico
-    % Devido à isso, fez-se melhor construir um algoritmo para obter a real
+    % Devido à isso, achou-se melhor construir um algoritmo para obter a real
     % transformada de fourier discreta.
     
     espectro = zeros(1, numero_de_elementos_da_entrada);  % Alocação primária
@@ -54,8 +72,9 @@ function [vetor_de_frequencias, espectro] = aplicar_dft(vetor_de_entrada, numero
     vetor_de_frequencias = vetor_de_frequencias( 1 : floor(numero_de_elementos_da_entrada / 2) );
 end
 
-
-resp_amplitude_por_freq = [0, 0];  % Para armazenarmos os dados obtidos a partir da análise dos quadrados.
+% Para armazenarmos os dados obtidos a partir da análise dos quadrados.
+% Frequência - Razão de Amplitude
+resp_amplitude_por_freq = [];  
 for i = 1:length(arquivos_da_pasta)
     
     nome_base = arquivos_da_pasta(i).name;
@@ -104,7 +123,7 @@ for i = 1:length(arquivos_da_pasta)
     % 
     %         % Os casos em que não obtemos o correto possuem amplitude muito
     %         % menor, logo devemos consertar isso.
-    %         if amplitude < amplitude_aproximada * 0.95 
+    %         if amplitude < amplitude_aproximada * 0.95
     % 
     %             % Alterando os valores de chute, conseguimos cortornar o
     %             % problema, apesar de deixar menos eficiente.
@@ -113,13 +132,16 @@ for i = 1:length(arquivos_da_pasta)
     % 
     %             break
     %         end
+    % 
+    % 
     %     end
     % 
     %     % De posse desses dados obtidos:
-    %     matriz_de_resp_em_freq_por_senos(idx, 1) = frequencia_da_entrada;
+    %     matriz_de_resp_em_freq_por_senos(idx, 1) = frequencia_da_entrada * 2 * pi; % Devemos ter rad/s
     %     matriz_de_resp_em_freq_por_senos(idx, 2) = amplitude;
     %     matriz_de_resp_em_freq_por_senos(idx, 3) = fase * 180 / pi;
     % 
+    %     % CASO DESEJE-SE VISUALIZAR OS RESPECTIVOS GRÁFICOS
     %     % ajuste = amplitude * sin(2 * pi * frequencia_da_entrada * instantes_de_amostragem + fase);
     %     % figure();
     %     % hold on 
@@ -127,7 +149,6 @@ for i = 1:length(arquivos_da_pasta)
     %     % plot(instantes_de_amostragem, saida_real);
     %     % title(fase * 180 / pi);
     %     % grid;
-    %     % hold off
     % 
     %     idx = idx + 1;
     % end
@@ -146,33 +167,99 @@ for i = 1:length(arquivos_da_pasta)
         frequencia_da_entrada = str2double(replace(erase(erase(nome_base, ".mat"), "sqr_"), "_", "."));
         instantes_de_amostragem = double(espaco.(espaco_de_variaveis{1})(:, 1));
         saida_real              = double(espaco.(espaco_de_variaveis{2})(:, 1));
-        
-        % Calculando transformada da saída
-        [vet_freq, espec_saida] = aplicar_dft(saida_real, length(saida_real), 100);
-        
+
         % Teorizando entrada
         pulso_quadrado_de_entrada = sign(sin(2 * pi * frequencia_da_entrada * instantes_de_amostragem));
-        
+
         % Calculando transformada da entrada
         [~, espec_entrada] = aplicar_dft(pulso_quadrado_de_entrada, length(pulso_quadrado_de_entrada), 100);
-        
-        % Calculando a resposta
-        % resp_em_frequencia = espec_saida ./ espec_entrada;
 
-        % Vamos obter os pontos de máximo em frequência da entrada e
-        % analisá-los na saída. Obtendo uma razão.
-        [max_locais_na_entrada, indices_dos_max] = findpeaks(abs(espec_entrada), 'MinPeakProminence', 0.05);
-        vetor_de_frequencias_de_pico = vet_freq(indices_dos_max);
-        
-        max_locais_na_saida = abs(espec_saida(indices_dos_max));
-        
-        % Enfim, temos a coleção de pontos desejados.
-        razao = max_locais_na_saida ./ max_locais_na_entrada;
+        % Calculando transformada da saída
+        [vet_freq, espec_saida] = aplicar_dft(saida_real, length(saida_real), 100);
 
-        conj_a_ser_adicionado = [vetor_de_frequencias_de_pico(:) , razao(:)];
+        % Devemos criar um algoritmo para obtenção dos dados a serem
+        % plotados.
+        %
+        % Para amplitude:
+        %   
+        %   Devido ao ruído, não há a possibilidade de apenas dividirmos as
+        %   transformadas da saída pela entrada. Sendo assim, faremos
+        %   apenas a análise dos picos. Graças ao matlab, já existe uma função 
+        %   que encontra picos de maneira satisfatória.
+        %   
+        %   Entretanto, há outro problema. Na maioria dos arquivos, um pico
+        %   na frequência de entrada f também gerará um pico, atenuado ou
+        %   não, na frequência de saída f, mas não necessariamente sempre
+        %   ocorrerá isso, há valores de dispersão, acredito que devido ao
+        %   erro. Sendo assim, faremos verificações e correções.
+        
+        % ANALISANDO AMPLITUDES
+        %
+        % PASSO 1: Obter os picos da entrada e da saída e suas respectivas
+        % frequências.
+        [picos_na_entrada, indices_dos_picos_na_entrada] = findpeaks(abs(espec_entrada), 'MinPeakProminence', 0.10);
+        [picos_na_saida, indices_dos_picos_na_saida] = findpeaks(abs(espec_saida), 'MinPeakProminence', 0.10);  
+        
+        % Desnecessario, dado que trabalhar com os indices é a mesma coisa.
+        % % As respectivas frequencias 
+        % frequencias_correspondentes_aos_picos_na_entrada = vet_freq(indices_dos_picos_na_entrada);
+        % frequencias_correspondentes_aos_picos_na_saida   = vet_freq(indices_dos_picos_na_saida);
 
+        % Em geral, serão iguais, mas não necessariamente. Principalmente
+        % pq o ruído pode vir a ser interpretado como pico. 
+        % Vamos iterar sobre os picos da entrada e buscar seus
+        % correspondentes na saída. 
+        % 
+        % Supondo que sejam diferentes, vamos ficar com os valores de
+        % frequência da entrada, que está "pura".
+        conj_a_ser_adicionado = [];
+        for index_de_indice_de_pico_na_entrada = 1:length(indices_dos_picos_na_entrada)
+            
+            % Há a possibilidade de haver menos picos na saída do que na entrada.
+            % Isso significa que os picos foram muito atenuados pelo sistema. Podemos 
+            % aproximá-los para 0.
+
+            % Verificamos se o indice já existe na lista de indices da saída
+            index_de_indice_de_pico_na_saida = find(indices_dos_picos_na_saida == indices_dos_picos_na_entrada(index_de_indice_de_pico_na_entrada), 1);
+            
+            if ~isempty(index_de_indice_de_pico_na_saida)
+                % Então o indice existe na lista de indices de picos na saída.
+                % Podemos trivialmente então:
+                
+               conj_a_ser_adicionado = [conj_a_ser_adicionado ; [vet_freq(indices_dos_picos_na_entrada(index_de_indice_de_pico_na_entrada)), picos_na_saida(index_de_indice_de_pico_na_saida) / picos_na_entrada(index_de_indice_de_pico_na_entrada)]];
+            else
+                % Aqui nasce o problema. As frequências não são iguais.
+                % Devemos buscar então qual indice na saída é mais próximo do index da entrada.
+                % Como temos a garantia de que não há elementos repetidos, é possível:
+
+                [dif_min, index_de_indice_de_pico_na_saida] = min(abs(indices_dos_picos_na_saida - indices_dos_picos_na_entrada(index_de_indice_de_pico_na_entrada)));
+                
+                % Ainda sim, pode ser passível de erro, logo devemos evitar que a diferença de indices seja grande demais.
+                if dif_min > 18 
+
+                    if index_de_indice_de_pico_na_entrada > length(indices_dos_picos_na_saida)
+                        % Então o elemento que estamos buscando além de ser muito distoante dos elementos presentes
+                        % Também já está fora do escopo de quantidade. Isso quer dizer que seu sinal foi muito atenuado
+                        
+                        conj_a_ser_adicionado = [conj_a_ser_adicionado ; [ vet_freq(indices_dos_picos_na_entrada(index_de_indice_de_pico_na_entrada)), 0 ]];
+            
+                    else
+                        
+                        % Há apenas ruído.
+                        continue;
+                    end
+                        
+                end
+
+                % Adicionamos o pico de frequência mais próximo.
+                conj_a_ser_adicionado = [conj_a_ser_adicionado ; [vet_freq(indices_dos_picos_na_entrada(index_de_indice_de_pico_na_entrada)), picos_na_saida(index_de_indice_de_pico_na_saida) / picos_na_entrada(index_de_indice_de_pico_na_entrada)]];
+            end
+            
+        end
+        
         resp_amplitude_por_freq = [resp_amplitude_por_freq; conj_a_ser_adicionado];
-        
+
+        % CASO DESEJE VER AS RESPECTIVAS TRANSFORMADAS
         figure(); 
         subplot(2, 3, 1);
         plot(instantes_de_amostragem, pulso_quadrado_de_entrada);
@@ -196,7 +283,7 @@ for i = 1:length(arquivos_da_pasta)
 
         subplot(2, 3, 6);
         scatter(conj_a_ser_adicionado(:, 1), conj_a_ser_adicionado(:, 2));
-        title("Resposta da Amplitude por Frequência");
+        title("Resposta da Amplitude à Frequência A Partir Desta Entrada")
         grid;
     end
 
@@ -210,21 +297,20 @@ end
 % A SEGUIR, APRESENTAÇÃO DOS GRÁFICOS A PARTIR DAS SENOIDES
 % hold on
 % subplot(2, 3, 1);
-% scatter(matriz_de_resp_em_freq_por_senos(:, 1), matriz_de_resp_em_freq_por_senos(:, 2), "LineWidth", 3);
+% scatter(matriz_de_resp_em_freq_por_senos(:, 1), 20 * log(matriz_de_resp_em_freq_por_senos(:, 2)), "LineWidth", 3);
 % title("Resposta Em Frequência: Amplitude");
-% xlabel("Frequência (Hz)");
-% ylabel("Amplitude");
+% xlabel("Frequência Angular (rad / s)");
+% ylabel("Amplitude(db)");
 % grid;
 % 
 % subplot(2, 3, 4);
 % scatter(matriz_de_resp_em_freq_por_senos(:, 1), matriz_de_resp_em_freq_por_senos(:, 3), "LineWidth", 3);
 % title("Resposta Em Frequência: Defasagem");
-% xlabel("Frequência (Hz)");
-% ylabel("Fase");
+% xlabel("Frequência Angular (rad / s)");
+% ylabel("Fase(°)");
 % grid;
 % 
-% hold off
-
-% A SEGUIR, APRESENTAÇÃO DOS GRÁFICOS A PARTIR DAS QUADRADAS.
-% scatter(resp_amplitude_por_freq(:, 1), resp_amplitude_por_freq(:, 2));
+% % A SEGUIR, APRESENTAÇÃO DOS GRÁFICOS A PARTIR DAS QUADRADAS.
+% subplot(2, 3)
+% 
 % grid;
